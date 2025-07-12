@@ -1,29 +1,27 @@
 blueprint:
-  name: Confirmable Notification (Multi-Device)
-  description: >-
-    A script that sends an actionable notification with a confirmation before
-    running the specified action. Works with multiple devices.
+  name: Confirmable Notification (Multi-Device, Auto-Clear, Optional Tag)
+  description: >
+    Sends an actionable notification to multiple mobile devices.
+    When one device confirms or dismisses, the corresponding action runs and
+    notifications are cleared from all other devices.
   domain: script
-  source_url: https://github.com/YOUR_GITHUB_REPO_HERE
+  source_url: https://github.com/mfriik/HA-Confirmable-Notification-for-Multiple-Devices/blob/main/blueprints/script/mfriik/confirmable_notification_multi.yaml
   input:
     notify_devices:
-      name: Devices to notify
-      description: Devices must run the official Home Assistant app.
+      name: Devices to Notify
+      description: Devices must use the official Home Assistant mobile app.
       selector:
         device:
-          multiple: true
           integration: mobile_app
+          multiple: true
 
     title:
-      name: Title
-      description: Title of the notification
-      default: ""
+      name: Notification Title
       selector:
         text:
 
     message:
-      name: Message
-      description: Body text of the notification
+      name: Message Body
       selector:
         text:
 
@@ -35,9 +33,9 @@ blueprint:
 
     confirm_action:
       name: Action on Confirmation
-      default: []
       selector:
         action:
+      default: []
 
     dismiss_text:
       name: Dismiss Button Text
@@ -47,18 +45,33 @@ blueprint:
 
     dismiss_action:
       name: Action on Dismiss
-      default: []
       selector:
         action:
+      default: []
+
+    notification_tag:
+      name: Notification Tag (Optional)
+      description: >
+        Custom tag to identify this notification.
+        Leave empty to auto-generate.
+      selector:
+        text:
+      default: ""
 
 mode: parallel
 
 sequence:
-  - alias: "Prepare action IDs"
+  - alias: "Set up variables"
     variables:
       base_context: "{{ context.id }}"
       action_confirm_prefix: "CONFIRM_"
       action_dismiss_prefix: "DISMISS_"
+      tag: >
+        {% if notification_tag | length > 0 %}
+          {{ notification_tag }}
+        {% else %}
+          notify_{{ context.id }}
+        {% endif %}
 
   - alias: "Send notifications to all devices"
     repeat:
@@ -74,30 +87,41 @@ sequence:
           title: !input title
           message: !input message
           data:
+            tag: "{{ tag }}"
             actions:
               - action: "{{ action_confirm }}"
                 title: !input confirm_text
               - action: "{{ action_dismiss }}"
                 title: !input dismiss_text
 
-  - alias: "Wait for first response"
+  - alias: "Wait for first device to respond"
     wait_for_trigger:
       - platform: event
         event_type: mobile_app_notification_action
         event_data:
-          action: "{{ action_confirm_prefix ~ base_context }}_"
+          action: "{{ action_confirm_prefix ~ base_context }}"
       - platform: event
         event_type: mobile_app_notification_action
         event_data:
-          action: "{{ action_dismiss_prefix ~ base_context }}_"
-    continue_on_timeout: false
+          action: "{{ action_dismiss_prefix ~ base_context }}"
 
-  - alias: "Determine which action was taken"
+  - alias: "Capture response"
     variables:
       received_action: "{{ wait.trigger.event.data.action }}"
       is_confirmed: "{{ 'CONFIRM_' in received_action }}"
       is_dismissed: "{{ 'DISMISS_' in received_action }}"
-  
+
+  - alias: "Clear notifications from all devices"
+    repeat:
+      for_each: !input notify_devices
+      sequence:
+        - domain: mobile_app
+          type: notify
+          device_id: "{{ repeat.item }}"
+          message: clear_notification
+          data:
+            tag: "{{ tag }}"
+
   - choose:
       - conditions: "{{ is_confirmed }}"
         sequence: !input confirm_action
