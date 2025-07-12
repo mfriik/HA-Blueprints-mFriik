@@ -2,15 +2,15 @@ blueprint:
   name: Confirmable Multi-Device Notification
   description: >
     A script that sends an actionable notification to multiple mobile devices.
-
-    ✅ The first response wins  
-    ✅ Notifications are tagged and auto-cleared from all devices once someone responds  
-    ✅ Works on both Android and iOS  
-    ✅ Notification tag is required for proper functionality  
-    ✅ You can send follow-up notifications to all users about the decision
-
+    The first device to respond wins.
+    When confirmed or dismissed:
+    - Runs the configured action
+    - Clears the notification on all devices
+    Requires the official Home Assistant app.
   domain: script
-  author: MFrik (based on Rüdiger Müller's original concept)
+  author: mFriik (based on work by Rüdiger Müller)
+  source_url: https://github.com/mfriik/HA-Blueprints-mFriik/blob/main/blueprints/script/mfriik/confirmable_notification_multi.yaml
+
   input:
     notify_devices:
       name: Select notification actions
