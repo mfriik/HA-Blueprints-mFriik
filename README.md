@@ -37,10 +37,7 @@ This blueprint sends a notification to one or more `mobile_app` devices. As soon
 
 Click below to import directly into your Home Assistant instance:
 
-<a href="https://my.home-assistant.io/redirect/blueprint_import/?repository_url=https://raw.githubusercontent.com/mfriik/HA-Blueprints-mFriik/main/blueprints/script/mfriik/confirmable_notification_multi.yaml">
-  <img src="https://community-assets.home-assistant.io/original/4X/1/a/1/1a129e306bc6a339cf8a2b9222553254a1909b6f.svg" 
-       alt="Import this blueprint" width="592" height="40" style="max-width: 100%;">
-</a>
+[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fraw.githubusercontent.com%2Fmfriik%2FHA-Blueprints-mFriik%2Frefs%2Fheads%2Fmain%2Fblueprints%2Fscript%2Fmfriik%2Fconfirmable_notification_multiple_devices.yaml)
 
 ---
 
