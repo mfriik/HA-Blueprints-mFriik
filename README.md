@@ -1,30 +1,39 @@
-# Home Assistant Blueprints
+# HA-Confirmable-Notification-for-Multiple-Devices
 
-This repository contains custom blueprints for [Home Assistant](https://www.home-assistant.io/) — a popular open-source platform for smart home automation.
+Custom Home Assistant blueprint for sending actionable notifications to **multiple mobile devices** — with auto-clear support once any device responds. Fully customizable and ideal for multi-user household interactions.
 
 ---
 
 ## 📲 Confirmable Notification (Multi-Device)
 
-This script blueprint sends a mobile actionable notification to **multiple devices**. It waits for the first response (confirmation or dismissal) and executes the corresponding action.
+This blueprint sends a notification to one or more `mobile_app` devices. As soon as **any** recipient confirms or dismisses, it:
+
+1. Triggers the **confirm** or **dismiss** action defined by you  
+2. **Clears** the notification from **all** devices  
+3. Supports an **optional custom tag** to identify or override the notification
+
+---
 
 ### 🔧 Features
 
-- ✅ Sends notification to **multiple mobile devices**
-- 🔔 Includes **Confirm** and **Dismiss** actions
-- 🔄 Waits for **first device to respond**
-- 🧩 Uses `context.id` to uniquely identify notification actions
-- 🛠 Fully compatible with [Home Assistant’s mobile app integration](https://companion.home-assistant.io/)
+- Multiple device targeting  
+- Unique confirm/dismiss handling per script run  
+- Auto-clear across all devices  
+- Optional custom tag via UI  
+- Supports parallel script execution in Home Assistant
 
-### 🧱 Blueprint Info
+---
 
-- **Domain**: `script`
-- **Mode**: `parallel` — allows multiple instances simultaneously
-- **File**: `blueprints/script/YOUR_USERNAME/confirmable_notification_multi.yaml`
+## 🧱 Blueprint Details
 
-### 🔗 Import This Blueprint
+- **Domain**: `script`  
+- **Mode**: `parallel`  
+- **File Path**: `blueprints/script/mfriik/confirmable_notification_multi.yaml`  
+- **Source URL**: [https://github.com/mfriik/HA-Confirmable-Notification-for-Multiple-Devices/blob/main/blueprints/script/mfriik/confirmable_notification_multi.yaml](https://github.com/mfriik/HA-Confirmable-Notification-for-Multiple-Devices/blob/main/blueprints/script/mfriik/confirmable_notification_multi.yaml)
 
-[![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?repository_url=https://github.com/YOUR_USERNAME/home-assistant-blueprints/blob/main/blueprints/script/YOUR_USERNAME/confirmable_notification_multi.yaml)
+---
 
-Or manually paste this URL into Home Assistant ➝ *Blueprints* ➝ *Import Blueprint*:
+### 🔗 How to Import
+
+Import directly into Home Assistant via Blueprints ➝ **Import Blueprint** using this URL:
 
