@@ -1,129 +1,244 @@
 blueprint:
-  name: Confirmable Notification (Multi-Device, Auto-Clear, Optional Tag)
-  description: >
-    Sends an actionable notification to multiple mobile devices.
-    When one device confirms or dismisses, the corresponding action runs and
-    notifications are cleared from all other devices.
+  name: Confirmable Multi-Device Notification
+  description: >-
+    A script that sends an actionable notification to multiple mobile devices.
+
+    **The official Home Assistant app is required and only actions of type notify.mobile_app_* will be considered.**
+
+    The first device responding to the notification will win.
+
+    If no response is received within the timeout period, it will be interpreted as dismiss.
+
+    The script will:
+    - Send a confirmable notification to all selected devices
+    - Wait for the first device to respond
+    - Log the result and run confirm/dismiss actions
+    - Optionally notify all users about the decision
   domain: script
-  source_url: https://github.com/mfriik/HA-Confirmable-Notification-for-Multiple-Devices/blob/main/blueprints/script/mfriik/confirmable_notification_multi.yaml
+  author: Adjusted by Michał + ChatGPT from Rüdiger Müller's original
   input:
     notify_devices:
-      name: Devices to Notify
-      description: Devices must use the official Home Assistant mobile app.
+      name: Notification Actions
+      description: >-
+        Select notification actions of type `notify.mobile_app_*` (e.g. your phone/tablet).
+        You can select multiple notification services.
+        Only mobile_app notifications will be sent — others will be skipped.
       selector:
-        device:
-          integration: mobile_app
-          multiple: true
+        action:
 
-    title:
+    decision_title:
       name: Notification Title
+      default: ""
       selector:
         text:
 
-    message:
-      name: Message Body
+    decision_message:
+      name: Notification Message
       selector:
         text:
 
-    confirm_text:
+    decision_confirm_title:
       name: Confirmation Button Text
       default: "Confirm"
       selector:
         text:
 
-    confirm_action:
-      name: Action on Confirmation
-      selector:
-        action:
-      default: []
-
-    dismiss_text:
+    decision_dismiss_title:
       name: Dismiss Button Text
       default: "Dismiss"
       selector:
         text:
 
-    dismiss_action:
-      name: Action on Dismiss
+    max_wait_time:
+      name: Maximum Wait Time (minutes)
+      default: 1
       selector:
-        action:
-      default: []
+        number:
+          min: 1
+          max: 60
+          step: 1
+          mode: box
+          unit_of_measurement: min
 
-    notification_tag:
-      name: Notification Tag (Optional)
-      description: >
-        Custom tag to identify this notification.
-        Leave empty to auto-generate.
+    log_confirm_name:
+      name: Log Name for Confirm
+      default: "Confirmed"
       selector:
         text:
-      default: ""
 
-mode: parallel
+    log_confirm_message:
+      name: Log Message for Confirm
+      default: "A user confirmed the notification"
+      selector:
+        text:
+
+    log_dismiss_name:
+      name: Log Name for Dismiss
+      default: "Dismissed"
+      selector:
+        text:
+
+    log_dismiss_message:
+      name: Log Message for Dismiss
+      default: "A user dismissed the notification"
+      selector:
+        text:
+
+    confirm_actions:
+      name: Actions on Confirm
+      default: []
+      selector:
+        action:
+
+    confirm_title:
+      name: Notification Title (Post-Confirm)
+      default: "Confirmed"
+      selector:
+        text:
+
+    confirm_message:
+      name: Notification Message (Post-Confirm)
+      default: "A user confirmed the action"
+      selector:
+        text:
+
+    dismiss_actions:
+      name: Actions on Dismiss
+      default: []
+      selector:
+        action:
+
+    dismiss_title:
+      name: Notification Title (Post-Dismiss)
+      default: "Dismissed"
+      selector:
+        text:
+
+    dismiss_message:
+      name: Notification Message (Post-Dismiss)
+      default: "The request was dismissed or timed out"
+      selector:
+        text:
+
+mode: restart
 
 sequence:
-  - alias: "Set up variables"
+  - alias: Define variables
     variables:
-      base_context: "{{ context.id }}"
-      action_confirm_prefix: "CONFIRM_"
-      action_dismiss_prefix: "DISMISS_"
-      tag: >
-        {% if notification_tag | length > 0 %}
-          {{ notification_tag }}
-        {% else %}
-          notify_{{ context.id }}
-        {% endif %}
+      decision_confirm_action: "{{ 'CONFIRM_' ~ context.id }}"
+      decision_dismiss_action: "{{ 'DISMISS_' ~ context.id }}"
 
-  - alias: "Send notifications to all devices"
+  - alias: Send push notifications to all selected devices
     repeat:
       for_each: !input notify_devices
       sequence:
-        - variables:
-            action_confirm: "{{ action_confirm_prefix ~ base_context ~ '_' ~ repeat.item }}"
-            action_dismiss: "{{ action_dismiss_prefix ~ base_context ~ '_' ~ repeat.item }}"
-        - alias: "Send notification"
-          domain: mobile_app
-          type: notify
-          device_id: "{{ repeat.item }}"
-          title: !input title
-          message: !input message
-          data:
-            tag: "{{ tag }}"
-            actions:
-              - action: "{{ action_confirm }}"
-                title: !input confirm_text
-              - action: "{{ action_dismiss }}"
-                title: !input dismiss_text
+        - choose:
+            - conditions:
+                - condition: template
+                  value_template: "{{ repeat.item.action.startswith('notify.mobile_app') }}"
+              sequence:
+                - alias: Send notification
+                  action: "{{ repeat.item.action }}"
+                  data:
+                    title: !input decision_title
+                    message: !input decision_message
+                    data:
+                      actions:
+                        - action: "{{ decision_confirm_action }}"
+                          title: !input decision_confirm_title
+                        - action: "{{ decision_dismiss_action }}"
+                          title: !input decision_dismiss_title
+        - alias: Skip invalid action types
+          choose:
+            - conditions:
+                - condition: template
+                  value_template: "{{ not repeat.item.action.startswith('notify.mobile_app') }}"
+              sequence:
+                - alias: Log unsupported action
+                  service: logbook.log
+                  data:
+                    name: Skipped action
+                    message: "Provided action {{ repeat.item.action }} is not a mobile_app notification."
 
-  - alias: "Wait for first device to respond"
+  - alias: Wait for first response
     wait_for_trigger:
       - platform: event
         event_type: mobile_app_notification_action
         event_data:
-          action: "{{ action_confirm_prefix ~ base_context }}"
+          action: "{{ decision_confirm_action }}"
+        alias: Confirm clicked
       - platform: event
         event_type: mobile_app_notification_action
         event_data:
-          action: "{{ action_dismiss_prefix ~ base_context }}"
+          action: "{{ decision_dismiss_action }}"
+        alias: Dismiss clicked
+    timeout:
+      minutes: !input max_wait_time
+    continue_on_timeout: true
 
-  - alias: "Capture response"
-    variables:
-      received_action: "{{ wait.trigger.event.data.action }}"
-      is_confirmed: "{{ 'CONFIRM_' in received_action }}"
-      is_dismissed: "{{ 'DISMISS_' in received_action }}"
-
-  - alias: "Clear notifications from all devices"
-    repeat:
-      for_each: !input notify_devices
-      sequence:
-        - domain: mobile_app
-          type: notify
-          device_id: "{{ repeat.item }}"
-          message: clear_notification
-          data:
-            tag: "{{ tag }}"
-
-  - choose:
-      - conditions: "{{ is_confirmed }}"
-        sequence: !input confirm_action
-      - conditions: "{{ is_dismissed }}"
-        sequence: !input dismiss_action
+  - alias: Process response
+    choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ wait.trigger is not none and wait.trigger.event.data.action == decision_confirm_action }}"
+        sequence:
+          - service: logbook.log
+            data:
+              name: !input log_confirm_name
+              message: !input log_confirm_message
+          - sequence: !input confirm_actions
+          - alias: Notify all devices of confirmation
+            repeat:
+              for_each: !input notify_devices
+              sequence:
+                - choose:
+                    - conditions:
+                        - condition: template
+                          value_template: "{{ repeat.item.action.startswith('notify.mobile_app') }}"
+                      sequence:
+                        - action: "{{ repeat.item.action }}"
+                          data:
+                            title: !input confirm_title
+                            message: !input confirm_message
+      - conditions:
+          - condition: template
+            value_template: "{{ wait.trigger is not none and wait.trigger.event.data.action == decision_dismiss_action }}"
+        sequence:
+          - service: logbook.log
+            data:
+              name: !input log_dismiss_name
+              message: !input log_dismiss_message
+          - sequence: !input dismiss_actions
+          - alias: Notify all devices of dismissal
+            repeat:
+              for_each: !input notify_devices
+              sequence:
+                - choose:
+                    - conditions:
+                        - condition: template
+                          value_template: "{{ repeat.item.action.startswith('notify.mobile_app') }}"
+                      sequence:
+                        - action: "{{ repeat.item.action }}"
+                          data:
+                            title: !input dismiss_title
+                            message: !input dismiss_message
+    default:
+      - alias: Timeout fallback
+        service: logbook.log
+        data:
+          name: "Timeout"
+          message: "No user responded. Executing dismiss fallback."
+      - sequence: !input dismiss_actions
+      - alias: Notify all devices of timeout
+        repeat:
+          for_each: !input notify_devices
+          sequence:
+            - choose:
+                - conditions:
+                    - condition: template
+                      value_template: "{{ repeat.item.action.startswith('notify.mobile_app') }}"
+                  sequence:
+                    - action: "{{ repeat.item.action }}"
+                      data:
+                        title: !input dismiss_title
+                        message: !input dismiss_message
