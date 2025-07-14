@@ -55,7 +55,7 @@ blueprint:
       selector:
         number:
           min: 1.0
-          max: 60.0
+          max: 90.0
           step: 1.0
           mode: box
           unit_of_measurement: min
